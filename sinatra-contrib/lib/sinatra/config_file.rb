@@ -131,11 +131,9 @@ module Sinatra
             raise UnsupportedConfigType unless ['.yml', '.erb'].include?(File.extname(file))
             logger.info "loading config file '#{file}'" if logging? && respond_to?(:logger)
             document = ERB.new(IO.read(file)).result
-            yaml = config_for_env(YAML.load(document)) || {}
-            yaml.each_pair do |key, value|
-              for_env = config_for_env(value)
-              set key, for_env unless value and for_env.nil? and respond_to? key
-            end
+            yaml = hash_level(YAML.load(document)) || {}
+            return if yaml.empty?
+            yaml.each_pair { |key, value| set(key, value) }
           end
         end
       end
@@ -149,6 +147,7 @@ module Sinatra
 
     private
 
+<<<<<<< HEAD
     # Given a +hash+ with some application configuration it returns the
     # settings applicable to the current environment.  Note that this can only
     # be done when all the keys of +hash+ are environment names included in the
@@ -164,7 +163,32 @@ module Sinatra
         IndifferentHash[hash.to_hash]
       else
         hash
+=======
+    # 1. Send in config file of arbitray depth
+    # 2. Log all root-level attributes unless environments, in which case return with the environment
+    # 3. Reduce the next level for environments and return the result to the function
+    # 4. Reduce the next level etc.
+    # 5. Return resulting hash
+    def hash_level(config)
+      return config[environment.to_s] if hash_with_environment_root?(config)
+
+      config.reduce({}) do |acc, (key, value)|
+        value = value[environment.to_s] if hash_with_environment_root?(value)
+        acc.merge(key => with_indifferent_access(value)) unless value.nil?
+>>>>>>> Load current environment settings regardless of support for other environments in settings file.
       end
+    end
+
+    def hash_with_environment_root?(hash)
+      hash.is_a?(Hash) &&
+        hash.keys.map(&:to_s).any? { |k| environments.include?(k) }
+    end
+
+    def with_indifferent_access(h)
+      return h unless h.is_a?(Hash)
+
+      indifferent_hash = Hash.new { |hash, key| hash[key.to_s] if Symbol === key }
+      indifferent_hash.merge h.to_hash
     end
   end
 
