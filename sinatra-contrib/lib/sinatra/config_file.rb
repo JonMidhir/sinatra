@@ -139,7 +139,7 @@ module Sinatra
 
     private
 
-    # Given a +hash+ with some application configuration, returns the settings
+    # Given a +config+ hash with some application configuration, returns the settings
     # applicable to the current +environment+.
     def config_for_env(config)
       return config[environment.to_s] || {} if has_environment_keys?(config)
@@ -151,7 +151,7 @@ module Sinatra
     end
 
     # Returns true if supplied with a hash that has any recognized
-    # +environments+ in it's root keys.
+    # +environments+ in its root keys.
     def has_environment_keys?(hash)
       return false unless hash.is_a?(Hash)
 
