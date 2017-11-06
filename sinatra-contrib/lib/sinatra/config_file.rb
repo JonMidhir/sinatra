@@ -124,8 +124,9 @@ module Sinatra
             raise UnsupportedConfigType unless ['.yml', '.erb'].include?(File.extname(file))
             logger.info "loading config file '#{file}'" if logging? && respond_to?(:logger)
             document = ERB.new(IO.read(file)).result
-            yaml = config_for_env(YAML.load(document))
-            yaml.each_pair { |key, value| set(key, value) }
+            yaml = YAML.load(document)
+            config = config_for_env(yaml)
+            config.each_pair { |key, value| set(key, value) }
           end
         end
       end
@@ -139,31 +140,31 @@ module Sinatra
 
     private
 
-    # Given a +config+ hash with some application configuration, returns the settings
-    # applicable to the current +environment+.
-    def config_for_env(config)
-      return config[environment.to_s] || {} if has_environment_keys?(config)
+    # Given a +hash+ containing application configuration it returns
+    # settings applicable to the current environment. Note: It gives
+    # precedence to environment settings defined at the root-level.
+    def config_for_env(hash)
+      return from_environment_key(hash) if environment_keys?(hash)
 
-      config.each_with_object({}) do |(key, value), acc|
-        value = value[environment.to_s] if has_environment_keys?(value)
-        acc.merge!(key => with_indifferent_access(value)) unless value.nil?
+      hash.each_with_object(IndifferentHash[]) do |(k, v), acc|
+        if environment_keys?(v)
+          acc.merge!(k => v[environment.to_s]) if v.key?(environment.to_s)
+        else
+          acc.merge!(k => v)
+        end
       end
     end
 
-    # Returns true if supplied with a hash that has any recognized
-    # +environments+ in its root keys.
-    def has_environment_keys?(hash)
-      return false unless hash.is_a?(Hash)
-
-      hash.keys.map(&:to_s).any? { |k| environments.include?(k) }
+    # Given a +hash+ returns the settings corresponding to the current
+    # environment.
+    def from_environment_key(hash)
+      hash[environment.to_s] || hash[environment.to_sym] || {}
     end
 
-    # Returns a hash that can be accessed by both strings and symbols, when
-    # supplied with a hash with string keys.
-    def with_indifferent_access(hash)
-      return hash unless hash.is_a?(Hash)
-
-      Hash.new { |h, key| h[key.to_s] if Symbol === key }.merge(hash)
+    # Returns true if supplied with a hash that has any recognized
+    # +environments+ in its root keys.
+    def environment_keys?(hash)
+      hash.is_a?(Hash) && hash.any? { |k, _| environments.include?(k.to_s) }
     end
   end
 
