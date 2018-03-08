@@ -74,6 +74,15 @@ describe Sinatra::ConfigFile do
     expect(settings.foo).to eq('foo')
   end
 
+  it 'should not override setting defaults' do
+    # raise_errors is true by default in test environment
+    config_file 'key_value.yml'
+    expect(settings.raise_errors).to be true
+    # test the attempted override
+    config_file 'with_setting_override.yml'
+    expect(settings.raise_errors).to be true
+  end
+
   context 'when file contains superfluous environments' do
     before { config_file 'with_env_defaults.yml' }
 
